@@ -1,4 +1,5 @@
 import inspect
+import json
 from typing import Callable, Dict, Any, List
 from .protocol import Tool, create_tool_definition, CallToolResult
 from pydantic import BaseModel
@@ -81,6 +82,13 @@ class MCPServer:
     def list_tools(self) -> List[Dict[str, Any]]:
         return self.tool_definitions
 
+    def _serialize_result(self, result: Any) -> str:
+        if isinstance(result, BaseModel):
+            result = result.model_dump()
+        if isinstance(result, (dict, list)):
+            return json.dumps(result, ensure_ascii=True)
+        return str(result)
+
     async def call_tool(self, name: str, arguments: Dict[str, Any]) -> CallToolResult:
         """Call a tool asynchronously."""
         if name not in self.tools:
@@ -100,7 +108,7 @@ class MCPServer:
                 result = func(**arguments)
                 
             return CallToolResult(
-                content=[{"type": "text", "text": str(result)}],
+                content=[{"type": "text", "text": self._serialize_result(result)}],
                 isError=False
             )
         except Exception as e:

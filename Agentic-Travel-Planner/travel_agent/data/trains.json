@@ -1,0 +1,166 @@
+[
+  {
+    "train_id": "12004",
+    "train_number": "12004",
+    "train_name": "Lucknow Shatabdi Express",
+    "train_type": "Shatabdi",
+    "origin": "NDLS",
+    "origin_name": "New Delhi",
+    "destination": "LKO",
+    "destination_name": "Lucknow",
+    "departure_time": "06:10",
+    "arrival_time": "12:45",
+    "arrival_day_offset": 0,
+    "duration_minutes": 395,
+    "days_of_week": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    "route_popularity": 0.87,
+    "classes": [
+      {"code": "CC", "name": "AC Chair Car", "base_price": 1320, "base_inventory": 180, "demand_weight": 1.12},
+      {"code": "EC", "name": "Executive Chair Car", "base_price": 2380, "base_inventory": 56, "demand_weight": 0.82}
+    ]
+  },
+  {
+    "train_id": "12230",
+    "train_number": "12230",
+    "train_name": "Lucknow Mail",
+    "train_type": "Superfast",
+    "origin": "NDLS",
+    "origin_name": "New Delhi",
+    "destination": "LKO",
+    "destination_name": "Lucknow",
+    "departure_time": "22:00",
+    "arrival_time": "06:35",
+    "arrival_day_offset": 1,
+    "duration_minutes": 515,
+    "days_of_week": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    "route_popularity": 0.8,
+    "classes": [
+      {"code": "SL", "name": "Sleeper", "base_price": 520, "base_inventory": 320, "demand_weight": 1.2},
+      {"code": "3A", "name": "AC 3 Tier", "base_price": 1260, "base_inventory": 168, "demand_weight": 1.0},
+      {"code": "2A", "name": "AC 2 Tier", "base_price": 1860, "base_inventory": 64, "demand_weight": 0.82}
+    ]
+  },
+  {
+    "train_id": "12952",
+    "train_number": "12952",
+    "train_name": "Mumbai Rajdhani Express",
+    "train_type": "Rajdhani",
+    "origin": "NDLS",
+    "origin_name": "New Delhi",
+    "destination": "BCT",
+    "destination_name": "Mumbai Central",
+    "departure_time": "16:25",
+    "arrival_time": "08:15",
+    "arrival_day_offset": 1,
+    "duration_minutes": 950,
+    "days_of_week": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    "route_popularity": 0.91,
+    "classes": [
+      {"code": "3A", "name": "AC 3 Tier", "base_price": 2640, "base_inventory": 180, "demand_weight": 1.0},
+      {"code": "2A", "name": "AC 2 Tier", "base_price": 3550, "base_inventory": 78, "demand_weight": 0.86},
+      {"code": "1A", "name": "First AC", "base_price": 5850, "base_inventory": 22, "demand_weight": 0.6}
+    ]
+  },
+  {
+    "train_id": "12027",
+    "train_number": "12027",
+    "train_name": "Mysuru Shatabdi Express",
+    "train_type": "Shatabdi",
+    "origin": "MAS",
+    "origin_name": "Chennai Central",
+    "destination": "SBC",
+    "destination_name": "Bengaluru City",
+    "departure_time": "06:00",
+    "arrival_time": "10:55",
+    "arrival_day_offset": 0,
+    "duration_minutes": 295,
+    "days_of_week": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    "route_popularity": 0.83,
+    "classes": [
+      {"code": "CC", "name": "AC Chair Car", "base_price": 980, "base_inventory": 168, "demand_weight": 1.1},
+      {"code": "EC", "name": "Executive Chair Car", "base_price": 1920, "base_inventory": 44, "demand_weight": 0.78}
+    ]
+  },
+  {
+    "train_id": "20608",
+    "train_number": "20608",
+    "train_name": "Mysuru Vande Bharat Express",
+    "train_type": "Vande Bharat",
+    "origin": "SBC",
+    "origin_name": "Bengaluru City",
+    "destination": "MAS",
+    "destination_name": "Chennai Central",
+    "departure_time": "05:50",
+    "arrival_time": "10:25",
+    "arrival_day_offset": 0,
+    "duration_minutes": 275,
+    "days_of_week": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    "route_popularity": 0.86,
+    "classes": [
+      {"code": "CC", "name": "AC Chair Car", "base_price": 1120, "base_inventory": 180, "demand_weight": 1.08},
+      {"code": "EC", "name": "Executive Chair Car", "base_price": 2140, "base_inventory": 52, "demand_weight": 0.8}
+    ]
+  },
+  {
+    "train_id": "12246",
+    "train_number": "12246",
+    "train_name": "Howrah Duronto Express",
+    "train_type": "Duronto",
+    "origin": "HWH",
+    "origin_name": "Howrah Junction",
+    "destination": "PURI",
+    "destination_name": "Puri",
+    "departure_time": "20:40",
+    "arrival_time": "04:55",
+    "arrival_day_offset": 1,
+    "duration_minutes": 495,
+    "days_of_week": ["Monday", "Wednesday", "Friday", "Saturday"],
+    "route_popularity": 0.74,
+    "classes": [
+      {"code": "SL", "name": "Sleeper", "base_price": 480, "base_inventory": 300, "demand_weight": 1.18},
+      {"code": "3A", "name": "AC 3 Tier", "base_price": 1180, "base_inventory": 156, "demand_weight": 0.98},
+      {"code": "2A", "name": "AC 2 Tier", "base_price": 1710, "base_inventory": 58, "demand_weight": 0.78}
+    ]
+  },
+  {
+    "train_id": "12958",
+    "train_number": "12958",
+    "train_name": "Swarna Jayanti Rajdhani",
+    "train_type": "Rajdhani",
+    "origin": "ADI",
+    "origin_name": "Ahmedabad Junction",
+    "destination": "NDLS",
+    "destination_name": "New Delhi",
+    "departure_time": "17:40",
+    "arrival_time": "07:30",
+    "arrival_day_offset": 1,
+    "duration_minutes": 830,
+    "days_of_week": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    "route_popularity": 0.85,
+    "classes": [
+      {"code": "3A", "name": "AC 3 Tier", "base_price": 2420, "base_inventory": 168, "demand_weight": 1.0},
+      {"code": "2A", "name": "AC 2 Tier", "base_price": 3340, "base_inventory": 72, "demand_weight": 0.82},
+      {"code": "1A", "name": "First AC", "base_price": 5660, "base_inventory": 20, "demand_weight": 0.58}
+    ]
+  },
+  {
+    "train_id": "12988",
+    "train_number": "12988",
+    "train_name": "Ajmer Shatabdi Express",
+    "train_type": "Shatabdi",
+    "origin": "JP",
+    "origin_name": "Jaipur Junction",
+    "destination": "NDLS",
+    "destination_name": "New Delhi",
+    "departure_time": "06:05",
+    "arrival_time": "10:40",
+    "arrival_day_offset": 0,
+    "duration_minutes": 275,
+    "days_of_week": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    "route_popularity": 0.78,
+    "classes": [
+      {"code": "CC", "name": "AC Chair Car", "base_price": 920, "base_inventory": 164, "demand_weight": 1.1},
+      {"code": "EC", "name": "Executive Chair Car", "base_price": 1780, "base_inventory": 44, "demand_weight": 0.76}
+    ]
+  }
+]

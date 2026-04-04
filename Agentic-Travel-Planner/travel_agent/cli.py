@@ -12,9 +12,12 @@ from travel_agent.agent.orchestrator import AgentOrchestrator
 from travel_agent.tools import (
     search_flights, 
     book_flight, 
+    search_trains,
+    book_train,
     rent_car, 
     get_forecast, 
     process_payment,
+    verify_travel_documents,
     get_current_datetime
 )
 
@@ -47,9 +50,12 @@ async def main():
     server = MCPServer()
     server.register_tool(search_flights)
     server.register_tool(book_flight)
+    server.register_tool(search_trains)
+    server.register_tool(book_train)
     server.register_tool(rent_car)
     server.register_tool(get_forecast)
     server.register_tool(process_payment)
+    server.register_tool(verify_travel_documents)
     server.register_tool(get_current_datetime)
 
     # 4. Initialize Agent

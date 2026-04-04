@@ -3,6 +3,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const userInput = document.getElementById('user-input');
     const chatContainer = document.getElementById('chat-container');
     const sendBtn = document.getElementById('send-btn');
+    const voiceModeBtn = document.getElementById('voice-mode-btn');
+    const voicePicker = document.getElementById('voice-picker');
+    const voicePickerBtn = document.getElementById('voice-picker-btn');
+    const voicePickerPanel = document.getElementById('voice-picker-panel');
+    const voiceSelect = document.getElementById('voice-select');
+    const voicePreviewBtn = document.getElementById('voice-preview-btn');
+    const voiceRefreshBtn = document.getElementById('voice-refresh-btn');
+    const voicePickerStatus = document.getElementById('voice-picker-status');
+    const voicePickerMeta = document.getElementById('voice-picker-meta');
+    const micBtn = document.getElementById('mic-btn');
     const statusIndicator = document.getElementById('status-indicator');
     const statusDot = statusIndicator.querySelector('.status-dot');
     const statusText = statusIndicator.querySelector('.status-text');
@@ -22,6 +32,41 @@ document.addEventListener('DOMContentLoaded', () => {
     let searchHistory = loadSearchHistory();
     let currentConversationId = null;
     let conversationMessages = [];
+    let isReplayingConversation = false;
+    let voiceConfig = { enabled: false, provider: 'elevenlabs', autoplay_supported: true, default_voice_id: '' };
+    let voiceAudio = null;
+    let voicePreviewAudio = null;
+    let activeVoiceObjectUrl = null;
+    let activeVoicePreviewObjectUrl = null;
+    let activeVoiceButton = null;
+    let activeVoiceMessageIndex = null;
+    let activeVoicePlaybackMode = null;
+    let activeVoicePreviewMode = null;
+    let voiceList = [];
+    let voiceListError = '';
+    let isLoadingVoices = false;
+    let temporaryBrowserVoiceFallback = false;
+    let temporaryBrowserVoiceReason = '';
+    let browserVoiceFallbackToastShown = false;
+    let speechRecognition = null;
+    let micListening = false;
+    let micPermissionDenied = false;
+    let micPermissionGranted = false;
+    let micBaseInputValue = '';
+    let micFinalTranscript = '';
+    let micShouldBeListening = false;
+    let micManualStopRequested = false;
+    let micRestartTimer = null;
+    let micRestartAttempts = 0;
+    let micLastError = '';
+    const VOICE_MODE_STORAGE_KEY = 'travelPlannerVoiceMode';
+    const VOICE_SELECTION_STORAGE_KEY = 'travelPlannerSelectedVoice';
+    const BROWSER_VOICE_OPTION_VALUE = '__browser_default__';
+    const browserSpeechSupported = typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance !== 'undefined';
+    const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+    const speechRecognitionSupported = Boolean(SpeechRecognitionConstructor);
+    let voiceModeEnabled = loadVoiceModePreference();
+    let selectedVoiceId = loadVoiceSelectionPreference();
     const PLANNER_STORAGE_KEY = 'travelPlannerDraft';
     const plannerStepDefinitions = [
         { title: 'Trip Basics', caption: 'Route, timing, and trip style' },
@@ -47,12 +92,80 @@ document.addEventListener('DOMContentLoaded', () => {
     const mealPreferenceOptions = ['Breakfast included', 'Half board', 'No meal preference'];
     const interestOptions = ['Beaches', 'Food', 'Adventure', 'Nightlife', 'Nature', 'Shopping', 'Culture', 'Relaxation', 'Local experiences'];
     const transportPreferenceOptions = ['Cheapest', 'Fastest', 'Balanced', 'Flight preferred', 'Train preferred', 'Bus preferred'];
+    const bookingModeOptions = ['Show both flights and trains', 'Flights only', 'Trains only', 'Best available option'];
     const paceOptions = ['Relaxed', 'Balanced', 'Packed'];
     const foodPreferenceOptions = ['Vegetarian', 'Non-vegetarian', 'Vegan', 'Jain', 'Seafood', 'No preference'];
     const languageOptions = ['English', 'Hindi', 'Spanish', 'French', 'German', 'Japanese'];
     const currencyOptions = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD'];
     const genderOptions = ['Prefer not to say', 'Female', 'Male', 'Non-binary'];
     const ageGroupOptions = ['Under 18', '18-24', '25-34', '35-49', '50+'];
+    const visaStatusOptions = ['Not required', 'Already have visa', 'Need visa guidance', 'Not sure'];
+    const INDIA_COUNTRY_NAME = 'India';
+    const cityCountryMap = {
+        'goa': INDIA_COUNTRY_NAME,
+        'delhi': INDIA_COUNTRY_NAME,
+        'mumbai': INDIA_COUNTRY_NAME,
+        'bengaluru': INDIA_COUNTRY_NAME,
+        'bangalore': INDIA_COUNTRY_NAME,
+        'hyderabad': INDIA_COUNTRY_NAME,
+        'chennai': INDIA_COUNTRY_NAME,
+        'kolkata': INDIA_COUNTRY_NAME,
+        'pune': INDIA_COUNTRY_NAME,
+        'jaipur': INDIA_COUNTRY_NAME,
+        'udaipur': INDIA_COUNTRY_NAME,
+        'manali': INDIA_COUNTRY_NAME,
+        'shimla': INDIA_COUNTRY_NAME,
+        'srinagar': INDIA_COUNTRY_NAME,
+        'varanasi': INDIA_COUNTRY_NAME,
+        'kochi': INDIA_COUNTRY_NAME,
+        'cochin': INDIA_COUNTRY_NAME,
+        'mysuru': INDIA_COUNTRY_NAME,
+        'mysore': INDIA_COUNTRY_NAME,
+        'ooty': INDIA_COUNTRY_NAME,
+        'pondicherry': INDIA_COUNTRY_NAME,
+        'puducherry': INDIA_COUNTRY_NAME,
+        'dubai': 'United Arab Emirates',
+        'singapore': 'Singapore',
+        'bangkok': 'Thailand',
+        'tokyo': 'Japan',
+        'seoul': 'South Korea',
+        'bali': 'Indonesia',
+        'phuket': 'Thailand',
+        'paris': 'France',
+        'rome': 'Italy',
+        'london': 'United Kingdom',
+        'barcelona': 'Spain',
+        'new york': 'United States',
+        'san francisco': 'United States'
+    };
+    const countryAliases = {
+        'india': INDIA_COUNTRY_NAME,
+        'ind': INDIA_COUNTRY_NAME,
+        'uae': 'United Arab Emirates',
+        'u.a.e': 'United Arab Emirates',
+        'united arab emirates': 'United Arab Emirates',
+        'singapore': 'Singapore',
+        'thailand': 'Thailand',
+        'japan': 'Japan',
+        'south korea': 'South Korea',
+        'korea': 'South Korea',
+        'republic of korea': 'South Korea',
+        'indonesia': 'Indonesia',
+        'france': 'France',
+        'italy': 'Italy',
+        'uk': 'United Kingdom',
+        'u.k.': 'United Kingdom',
+        'united kingdom': 'United Kingdom',
+        'great britain': 'United Kingdom',
+        'britain': 'United Kingdom',
+        'spain': 'Spain',
+        'usa': 'United States',
+        'u.s.a': 'United States',
+        'us': 'United States',
+        'u.s.': 'United States',
+        'united states': 'United States',
+        'united states of america': 'United States'
+    };
     let plannerState = loadPlannerDraft();
     let activePlannerStep = loadPlannerStep();
 
@@ -86,7 +199,8 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             transport_preferences: {
                 preference: 'Balanced',
-                pace: 'Balanced'
+                pace: 'Balanced',
+                booking_mode: 'Show both flights and trains'
             },
             interests: {
                 activities: ['Beaches', 'Food'],
@@ -106,6 +220,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 emergency_contact_phone: '',
                 traveler_notes: ''
             },
+            document_verification: {
+                authorized: false,
+                passport_verification: true,
+                visa_verification: true,
+                passport_number: '',
+                passport_expiry_date: '',
+                visa_status: 'Not sure',
+                visa_expiry_date: '',
+                destination_country: ''
+            },
             special_requirements: {
                 notes: ''
             }
@@ -124,6 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
             transport_preferences: { ...defaults.transport_preferences, ...(raw.transport_preferences || {}) },
             interests: { ...defaults.interests, ...(raw.interests || {}) },
             personal_info: { ...defaults.personal_info, ...(raw.personal_info || {}) },
+            document_verification: { ...defaults.document_verification, ...(raw.document_verification || {}) },
             special_requirements: { ...defaults.special_requirements, ...(raw.special_requirements || {}) }
         });
     }
@@ -155,6 +280,1154 @@ document.addEventListener('DOMContentLoaded', () => {
         return 0;
     }
 
+    function loadVoiceModePreference() {
+        try {
+            return localStorage.getItem(VOICE_MODE_STORAGE_KEY) === 'true';
+        } catch (error) {
+            console.error('Error loading voice mode preference:', error);
+            return false;
+        }
+    }
+
+    function persistVoiceModePreference() {
+        try {
+            localStorage.setItem(VOICE_MODE_STORAGE_KEY, String(voiceModeEnabled));
+        } catch (error) {
+            console.error('Error saving voice mode preference:', error);
+        }
+    }
+
+    function loadVoiceSelectionPreference() {
+        try {
+            return localStorage.getItem(VOICE_SELECTION_STORAGE_KEY) || '';
+        } catch (error) {
+            console.error('Error loading voice selection:', error);
+            return '';
+        }
+    }
+
+    function persistVoiceSelectionPreference() {
+        try {
+            if (selectedVoiceId) {
+                localStorage.setItem(VOICE_SELECTION_STORAGE_KEY, selectedVoiceId);
+            } else {
+                localStorage.removeItem(VOICE_SELECTION_STORAGE_KEY);
+            }
+        } catch (error) {
+            console.error('Error saving voice selection:', error);
+        }
+    }
+
+    function isBrowserVoiceSelected() {
+        return selectedVoiceId === BROWSER_VOICE_OPTION_VALUE;
+    }
+
+    function getVoiceButtonIconMarkup(isPlaying = false) {
+        if (isPlaying) {
+            return `
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+                </svg>
+            `;
+        }
+
+        return `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M15.5 8.5a5 5 0 0 1 0 7"></path>
+            </svg>
+        `;
+    }
+
+    function getEffectiveVoiceId() {
+        if (isBrowserVoiceSelected()) {
+            return '';
+        }
+        return String(selectedVoiceId || voiceConfig.default_voice_id || '').trim();
+    }
+
+    function canUseElevenLabsPlayback() {
+        return Boolean(!isBrowserVoiceSelected() && voiceConfig.enabled && getEffectiveVoiceId());
+    }
+
+    function canUseBrowserSpeechPlayback() {
+        return Boolean(browserSpeechSupported);
+    }
+
+    function canUseVoicePlayback() {
+        return Boolean(canUseElevenLabsPlayback() || canUseBrowserSpeechPlayback());
+    }
+
+    function shouldUseTemporaryBrowserFallback() {
+        return Boolean(temporaryBrowserVoiceFallback && canUseBrowserSpeechPlayback() && !isBrowserVoiceSelected());
+    }
+
+    function getPreferredVoiceProvider() {
+        if (isBrowserVoiceSelected()) {
+            return canUseBrowserSpeechPlayback() ? 'browser' : 'none';
+        }
+        if (shouldUseTemporaryBrowserFallback()) {
+            return 'browser';
+        }
+        if (canUseElevenLabsPlayback()) {
+            return 'elevenlabs';
+        }
+        if (canUseBrowserSpeechPlayback()) {
+            return 'browser';
+        }
+        return 'none';
+    }
+
+    function getSelectedVoice() {
+        if (isBrowserVoiceSelected()) {
+            return null;
+        }
+        const effectiveVoiceId = getEffectiveVoiceId();
+        if (!effectiveVoiceId) {
+            return null;
+        }
+
+        return voiceList.find(voice => voice.voice_id === effectiveVoiceId) || null;
+    }
+
+    function getBrowserSpeechVoice() {
+        if (!browserSpeechSupported) {
+            return null;
+        }
+
+        const voices = window.speechSynthesis.getVoices();
+        return (
+            voices.find(voice => voice.default) ||
+            voices.find(voice => /^en(-|_)/i.test(voice.lang || '')) ||
+            voices[0] ||
+            null
+        );
+    }
+
+    function getBrowserVoiceSummary() {
+        const browserVoice = getBrowserSpeechVoice();
+        if (!browserVoice) {
+            return 'Device default voice';
+        }
+
+        return `${browserVoice.name} (${browserVoice.lang || 'default'})`;
+    }
+
+    function prepareTextForBrowserSpeech(text, maxChars = 2500) {
+        const normalized = String(text || '')
+            .replace(/```[\s\S]*?```/g, ' ')
+            .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '$1')
+            .replace(/https?:\/\/\S+/g, ' ')
+            .replace(/Ã¢â‚¬Â¢|â€¢/g, ', ')
+            .replace(/->/g, ' to ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (!normalized) {
+            throw new Error('No speakable text was provided.');
+        }
+
+        if (normalized.length > maxChars) {
+            return `${normalized.slice(0, maxChars - 3).trim()}...`;
+        }
+
+        return normalized;
+    }
+
+    function resetTemporaryBrowserFallback() {
+        temporaryBrowserVoiceFallback = false;
+        temporaryBrowserVoiceReason = '';
+        browserVoiceFallbackToastShown = false;
+    }
+
+    function activateTemporaryBrowserFallback(reason = '') {
+        if (!canUseBrowserSpeechPlayback()) {
+            return;
+        }
+
+        temporaryBrowserVoiceFallback = true;
+        temporaryBrowserVoiceReason = reason || '';
+        renderVoicePicker();
+        updateVoiceModeButton();
+        updateAllMessageVoiceButtons();
+    }
+
+    function maybeShowBrowserFallbackToast() {
+        if (!canUseBrowserSpeechPlayback() || browserVoiceFallbackToastShown) {
+            return;
+        }
+
+        browserVoiceFallbackToastShown = true;
+        showToast('ElevenLabs is unavailable right now. Using your device voice instead.');
+    }
+
+    function updateMicButton() {
+        if (!micBtn) {
+            return;
+        }
+
+        const label = micBtn.querySelector('.mic-btn-label');
+        const disabled = isProcessing || !speechRecognitionSupported;
+        micBtn.disabled = disabled;
+        micBtn.classList.toggle('is-listening', micListening);
+        micBtn.setAttribute('aria-pressed', micListening ? 'true' : 'false');
+        micBtn.title = !speechRecognitionSupported
+            ? 'Speech input is not supported in this browser'
+            : (micListening ? 'Stop microphone input' : 'Speak your message');
+
+        if (label) {
+            label.textContent = !speechRecognitionSupported
+                ? 'Mic off'
+                : (micListening ? 'Listening' : 'Mic');
+        }
+    }
+
+    function clearMicRestartTimer() {
+        if (micRestartTimer) {
+            clearTimeout(micRestartTimer);
+            micRestartTimer = null;
+        }
+    }
+
+    function resetSpeechRecognitionInstance() {
+        if (!speechRecognition) {
+            return;
+        }
+
+        try {
+            speechRecognition.onstart = null;
+            speechRecognition.onresult = null;
+            speechRecognition.onerror = null;
+            speechRecognition.onend = null;
+            try {
+                speechRecognition.abort();
+            } catch (error) {
+                console.error('Error aborting speech recognition during reset:', error);
+            }
+        } finally {
+            speechRecognition = null;
+        }
+    }
+
+    function scheduleMicRestart(reason = '') {
+        if (!speechRecognitionSupported || !micShouldBeListening || isProcessing) {
+            return;
+        }
+
+        const fatalErrors = new Set(['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported']);
+        if (fatalErrors.has(reason)) {
+            return;
+        }
+
+        if (micRestartAttempts >= 3) {
+            micShouldBeListening = false;
+            micManualStopRequested = false;
+            updateMicButton();
+            showToast(
+                reason === 'network'
+                    ? 'Microphone connection dropped. Tap the mic to continue.'
+                    : 'Microphone paused. Tap the mic to continue.'
+            );
+            return;
+        }
+
+        clearMicRestartTimer();
+        micRestartAttempts += 1;
+        const delayMs = reason === 'network'
+            ? Math.min(2200, 700 + (micRestartAttempts * 450))
+            : (reason === 'no-speech' ? 300 : 450);
+        micRestartTimer = window.setTimeout(() => {
+            if (!micShouldBeListening || isProcessing) {
+                return;
+            }
+
+            try {
+                if (!speechRecognition || reason === 'network') {
+                    resetSpeechRecognitionInstance();
+                    initializeSpeechRecognition();
+                }
+                if (!speechRecognition) {
+                    throw new Error('Speech recognition is unavailable.');
+                }
+                micManualStopRequested = false;
+                speechRecognition.lang = document.documentElement.lang || navigator.language || 'en-US';
+                speechRecognition.start();
+            } catch (error) {
+                console.error('Error restarting speech recognition:', error);
+                micShouldBeListening = false;
+                resetSpeechRecognitionInstance();
+                updateMicButton();
+                showToast('Microphone could not restart. Tap the mic and try again.');
+            }
+        }, delayMs);
+    }
+
+    function stopMicCapture(options = {}) {
+        const { keepTranscript = true, immediate = false } = options;
+
+        micShouldBeListening = false;
+        micManualStopRequested = true;
+        clearMicRestartTimer();
+
+        if (speechRecognition && micListening) {
+            try {
+                if (immediate) {
+                    speechRecognition.abort();
+                } else {
+                    speechRecognition.stop();
+                }
+            } catch (error) {
+                console.error('Error stopping speech recognition:', error);
+            }
+        }
+
+        micListening = false;
+        if (!keepTranscript) {
+            micFinalTranscript = '';
+        }
+        micRestartAttempts = 0;
+        micLastError = '';
+        updateMicButton();
+    }
+
+    async function ensureMicrophonePermission() {
+        if (micPermissionGranted) {
+            return true;
+        }
+
+        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+            return true;
+        }
+
+        try {
+            if (navigator.permissions && typeof navigator.permissions.query === 'function') {
+                const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+                if (permissionStatus.state === 'granted') {
+                    micPermissionGranted = true;
+                    micPermissionDenied = false;
+                    return true;
+                }
+                if (permissionStatus.state === 'denied') {
+                    micPermissionDenied = true;
+                    showToast('Microphone permission is blocked. Allow mic access in your browser settings.');
+                    return false;
+                }
+            }
+        } catch (error) {
+            console.error('Error checking microphone permission:', error);
+        }
+
+        try {
+            showToast('Allow microphone access in your browser to use voice input.');
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(track => track.stop());
+            micPermissionGranted = true;
+            micPermissionDenied = false;
+            return true;
+        } catch (error) {
+            console.error('Error requesting microphone permission:', error);
+
+            const errorName = String(error?.name || '');
+            if (errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError' || errorName === 'SecurityError') {
+                micPermissionDenied = true;
+                showToast('Microphone permission was blocked. Allow mic access in your browser settings.');
+                return false;
+            }
+
+            if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError' || errorName === 'OverconstrainedError') {
+                showToast('No microphone was detected on this device.');
+                return false;
+            }
+
+            if (errorName === 'NotReadableError' || errorName === 'TrackStartError') {
+                showToast('Your microphone is busy in another app. Close that app and try again.');
+                return false;
+            }
+
+            showToast('Microphone access could not be started. Please check your browser microphone settings.');
+            return false;
+        }
+    }
+
+    function applyMicTranscript(interimTranscript = '') {
+        const prefix = micBaseInputValue.trim();
+        const spoken = `${micFinalTranscript} ${interimTranscript}`.trim();
+
+        if (prefix && spoken) {
+            userInput.value = `${prefix} ${spoken}`.replace(/\s+/g, ' ').trim();
+            return;
+        }
+
+        userInput.value = prefix || spoken;
+    }
+
+    function initializeSpeechRecognition() {
+        if (!speechRecognitionSupported || speechRecognition) {
+            return;
+        }
+
+        speechRecognition = new SpeechRecognitionConstructor();
+        speechRecognition.lang = document.documentElement.lang || navigator.language || 'en-US';
+        speechRecognition.interimResults = true;
+        speechRecognition.continuous = false;
+        speechRecognition.maxAlternatives = 1;
+
+        speechRecognition.onstart = () => {
+            micPermissionDenied = false;
+            micPermissionGranted = true;
+            micLastError = '';
+            micListening = true;
+            clearMicRestartTimer();
+            updateMicButton();
+        };
+
+        speechRecognition.onresult = (event) => {
+            let interimTranscript = '';
+
+            for (let index = event.resultIndex; index < event.results.length; index += 1) {
+                const transcript = String(event.results[index][0]?.transcript || '').trim();
+                if (!transcript) {
+                    continue;
+                }
+
+                if (event.results[index].isFinal) {
+                    micFinalTranscript = `${micFinalTranscript} ${transcript}`.trim();
+                } else {
+                    interimTranscript = `${interimTranscript} ${transcript}`.trim();
+                }
+            }
+
+            micRestartAttempts = 0;
+            applyMicTranscript(interimTranscript);
+        };
+
+        speechRecognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+            micLastError = event.error || '';
+
+            if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                micPermissionDenied = true;
+                stopMicCapture({ keepTranscript: true, immediate: true });
+                showToast('Microphone permission was blocked. Allow mic access in your browser settings.');
+                return;
+            }
+
+            if (event.error === 'no-speech') {
+                return;
+            }
+
+            if (event.error === 'audio-capture') {
+                stopMicCapture({ keepTranscript: true, immediate: true });
+                showToast('No microphone was detected on this device.');
+                return;
+            }
+
+            if (event.error === 'language-not-supported') {
+                stopMicCapture({ keepTranscript: true, immediate: true });
+                showToast('This browser does not support microphone dictation for the current language.');
+                return;
+            }
+
+            if (event.error === 'aborted') {
+                if (micManualStopRequested || isProcessing) {
+                    return;
+                }
+                return;
+            }
+
+            if (event.error === 'network') {
+                return;
+            }
+
+            if (micShouldBeListening) {
+                return;
+            }
+
+            stopMicCapture({ keepTranscript: true, immediate: true });
+            showToast('Microphone input could not continue. Please try again.');
+        };
+
+        speechRecognition.onend = () => {
+            micListening = false;
+            updateMicButton();
+            userInput.focus();
+            if (micShouldBeListening && !micManualStopRequested && !isProcessing) {
+                scheduleMicRestart(micLastError);
+                return;
+            }
+            micManualStopRequested = false;
+            micRestartAttempts = 0;
+        };
+    }
+
+    async function startMicCapture() {
+        if (!speechRecognitionSupported) {
+            showToast('Speech input is not supported in this browser.');
+            return;
+        }
+
+        if (isProcessing) {
+            showToast('Wait for the current reply before using the microphone.');
+            return;
+        }
+
+        const hasPermission = await ensureMicrophonePermission();
+        if (!hasPermission) {
+            updateMicButton();
+            return;
+        }
+
+        initializeSpeechRecognition();
+        if (!speechRecognition) {
+            showToast('Speech input is not available right now.');
+            return;
+        }
+
+        clearMicRestartTimer();
+        micShouldBeListening = true;
+        micManualStopRequested = false;
+        micRestartAttempts = 0;
+        micLastError = '';
+        micBaseInputValue = userInput.value.trim();
+        micFinalTranscript = '';
+        stopVoicePlayback();
+        stopVoicePreview();
+
+        try {
+            speechRecognition.lang = document.documentElement.lang || navigator.language || 'en-US';
+            speechRecognition.start();
+            if (!micPermissionDenied) {
+                showToast('Listening. Speak naturally and tap the mic again when you are done.');
+            }
+        } catch (error) {
+            console.error('Error starting speech recognition:', error);
+            micShouldBeListening = false;
+            micManualStopRequested = false;
+            resetSpeechRecognitionInstance();
+            updateMicButton();
+            showToast('Microphone input could not start. Please try again.');
+        }
+    }
+
+    function startBrowserSpeech(text, options = {}) {
+        const { mode = 'message', messageIndex = null } = options;
+
+        if (!canUseBrowserSpeechPlayback()) {
+            throw new Error('Browser voice is not supported in this browser.');
+        }
+
+        const normalizedText = prepareTextForBrowserSpeech(text);
+        const utterance = new SpeechSynthesisUtterance(normalizedText);
+        const browserVoice = getBrowserSpeechVoice();
+
+        if (browserVoice) {
+            utterance.voice = browserVoice;
+            utterance.lang = browserVoice.lang;
+        }
+
+        utterance.rate = 1;
+        utterance.onend = () => {
+            if (mode === 'preview') {
+                stopVoicePreview();
+            } else {
+                stopVoicePlayback();
+            }
+        };
+        utterance.onerror = () => {
+            if (mode === 'preview') {
+                stopVoicePreview();
+                showToast('Browser voice preview failed.');
+            } else {
+                stopVoicePlayback();
+                showToast('Browser voice playback failed.');
+            }
+        };
+
+        window.speechSynthesis.cancel();
+
+        if (mode === 'preview') {
+            activeVoicePreviewMode = 'browser';
+            updateVoicePreviewButton();
+        } else {
+            activeVoicePlaybackMode = 'browser';
+            activeVoiceMessageIndex = messageIndex;
+            updateAllMessageVoiceButtons();
+        }
+
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function formatVoiceOptionLabel(voice) {
+        const traits = [voice.category, voice.gender, voice.accent].filter(Boolean);
+        const suffix = voice.is_default ? ' - Default' : '';
+        return `${voice.name}${traits.length ? ` (${traits.join(', ')})` : ''}${suffix}`;
+    }
+
+    function formatVoiceMeta(voice) {
+        if (!voice) {
+            return '';
+        }
+
+        const traits = [voice.category, voice.gender, voice.accent, voice.age].filter(Boolean);
+        const metaParts = [];
+        if (traits.length) {
+            metaParts.push(traits.join(' / '));
+        }
+        if (voice.description) {
+            metaParts.push(voice.description);
+        }
+        return metaParts.join(' - ');
+    }
+
+    function appendVoiceOption(selectElement, value, label, { disabled = false } = {}) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        option.disabled = disabled;
+        selectElement.appendChild(option);
+    }
+
+    function closeVoicePicker() {
+        if (!voicePickerPanel || voicePickerPanel.hidden) {
+            return;
+        }
+
+        voicePickerPanel.hidden = true;
+        if (voicePickerBtn) {
+            voicePickerBtn.classList.remove('is-active');
+            voicePickerBtn.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    function openVoicePicker() {
+        if (!voicePickerPanel || (!voiceConfig.enabled && !canUseBrowserSpeechPlayback())) {
+            return;
+        }
+
+        voicePickerPanel.hidden = false;
+        if (voicePickerBtn) {
+            voicePickerBtn.classList.add('is-active');
+            voicePickerBtn.setAttribute('aria-expanded', 'true');
+        }
+        if (voiceSelect) {
+            requestAnimationFrame(() => voiceSelect.focus());
+        }
+    }
+
+    function updateVoicePreviewButton() {
+        if (!voicePreviewBtn) {
+            return;
+        }
+
+        const isPlaying = Boolean(
+            (voicePreviewAudio && !voicePreviewAudio.paused) ||
+            (activeVoicePreviewMode === 'browser' && browserSpeechSupported && window.speechSynthesis.speaking)
+        );
+        const canPreview = Boolean(canUseVoicePlayback() || getSelectedVoice()?.preview_url);
+
+        voicePreviewBtn.disabled = !canPreview;
+        voicePreviewBtn.classList.toggle('is-playing', isPlaying);
+        voicePreviewBtn.setAttribute('aria-pressed', isPlaying ? 'true' : 'false');
+        voicePreviewBtn.textContent = isPlaying ? 'Stop preview' : 'Preview';
+        voicePreviewBtn.title = canPreview
+            ? (isPlaying ? 'Stop preview playback' : 'Preview the selected voice')
+            : 'Voice preview is unavailable in this browser';
+    }
+
+    function renderVoicePicker() {
+        const effectiveVoiceId = getEffectiveVoiceId();
+        const selectedVoice = getSelectedVoice();
+        const hasVoiceList = voiceList.length > 0;
+        const canOpenVoiceSettings = Boolean(voiceConfig.enabled || canUseBrowserSpeechPlayback());
+        const usingBrowserVoice = getPreferredVoiceProvider() === 'browser';
+        const browserVoiceSummary = getBrowserVoiceSummary();
+        const browserOptionLabel = `Device voice (${browserVoiceSummary})`;
+
+        if (voicePickerBtn) {
+            const label = voicePickerBtn.querySelector('.voice-picker-label');
+            voicePickerBtn.disabled = !canOpenVoiceSettings;
+            voicePickerBtn.title = canOpenVoiceSettings
+                ? 'Voice settings'
+                : 'Voice is unavailable in this browser';
+            if (label) {
+                if (isBrowserVoiceSelected() || (usingBrowserVoice && !canUseElevenLabsPlayback())) {
+                    label.textContent = 'Device voice';
+                } else if (selectedVoice) {
+                    label.textContent = selectedVoice.name;
+                } else if (effectiveVoiceId) {
+                    label.textContent = 'Configured voice';
+                } else if (isLoadingVoices) {
+                    label.textContent = 'Loading voices';
+                } else {
+                    label.textContent = 'Pick voice';
+                }
+            }
+        }
+
+        if (voiceSelect) {
+            voiceSelect.innerHTML = '';
+
+            if (browserSpeechSupported) {
+                appendVoiceOption(voiceSelect, BROWSER_VOICE_OPTION_VALUE, browserOptionLabel);
+            }
+
+            if (!voiceConfig.enabled && !browserSpeechSupported) {
+                appendVoiceOption(voiceSelect, '', 'Voice is unavailable', { disabled: true });
+                voiceSelect.disabled = true;
+            } else if (isLoadingVoices && !voiceConfig.enabled) {
+                appendVoiceOption(voiceSelect, '', 'Loading voices...', { disabled: true });
+                voiceSelect.disabled = true;
+            } else {
+                if (!effectiveVoiceId && !isBrowserVoiceSelected() && voiceConfig.enabled) {
+                    appendVoiceOption(voiceSelect, '', 'Choose a voice', { disabled: false });
+                }
+
+                if (effectiveVoiceId && !voiceList.some(voice => voice.voice_id === effectiveVoiceId)) {
+                    appendVoiceOption(
+                        voiceSelect,
+                        effectiveVoiceId,
+                        selectedVoiceId ? 'Saved voice selection' : 'Configured default voice'
+                    );
+                }
+
+                voiceList.forEach(voice => {
+                    appendVoiceOption(voiceSelect, voice.voice_id, formatVoiceOptionLabel(voice));
+                });
+
+                voiceSelect.disabled = !browserSpeechSupported && !hasVoiceList && !effectiveVoiceId;
+                voiceSelect.value = isBrowserVoiceSelected()
+                    ? BROWSER_VOICE_OPTION_VALUE
+                    : (effectiveVoiceId || (browserSpeechSupported && !voiceConfig.enabled ? BROWSER_VOICE_OPTION_VALUE : ''));
+            }
+        }
+
+        if (voicePickerStatus) {
+            if (isBrowserVoiceSelected()) {
+                voicePickerStatus.textContent = 'Using your device voice. This works even when ElevenLabs is unavailable.';
+            } else if (temporaryBrowserVoiceFallback) {
+                voicePickerStatus.textContent = 'ElevenLabs is unavailable right now, so the app will use your device voice automatically.';
+            } else if (!voiceConfig.enabled && browserSpeechSupported) {
+                voicePickerStatus.textContent = 'ElevenLabs is not configured, but your browser voice is ready to use.';
+            } else if (!voiceConfig.enabled) {
+                voicePickerStatus.textContent = 'Add ELEVENLABS_API_KEY to load account voices.';
+            } else if (isLoadingVoices) {
+                voicePickerStatus.textContent = 'Loading voices from ElevenLabs...';
+            } else if (voiceListError) {
+                voicePickerStatus.textContent = browserSpeechSupported
+                    ? `${voiceListError} The app can still use your device voice.`
+                    : voiceListError;
+            } else if (browserSpeechSupported && canUseElevenLabsPlayback()) {
+                voicePickerStatus.textContent = 'Automatic mode uses ElevenLabs first and falls back to your device voice if needed.';
+            } else if (selectedVoice) {
+                voicePickerStatus.textContent = selectedVoiceId
+                    ? `Selected voice: ${selectedVoice.name}`
+                    : `Using project default voice: ${selectedVoice.name}`;
+            } else if (effectiveVoiceId) {
+                voicePickerStatus.textContent = selectedVoiceId
+                    ? 'Using your saved voice selection.'
+                    : 'Using the project default voice from .env.';
+            } else if (hasVoiceList) {
+                voicePickerStatus.textContent = 'Choose a voice for previews and assistant playback.';
+            } else {
+                voicePickerStatus.textContent = 'No voices were returned for this ElevenLabs account.';
+            }
+        }
+
+        if (voicePickerMeta) {
+            const metaText = selectedVoice
+                ? formatVoiceMeta(selectedVoice)
+                : ([browserSpeechSupported ? browserVoiceSummary : '', temporaryBrowserVoiceReason].filter(Boolean).join(' - '));
+            voicePickerMeta.hidden = !metaText;
+            voicePickerMeta.textContent = metaText;
+        }
+
+        if (voiceRefreshBtn) {
+            voiceRefreshBtn.disabled = (!voiceConfig.enabled && !browserSpeechSupported) || isLoadingVoices;
+            voiceRefreshBtn.textContent = isLoadingVoices ? 'Refreshing...' : 'Refresh';
+        }
+
+        updateVoicePreviewButton();
+    }
+
+    async function getResponseErrorMessage(response, fallbackMessage) {
+        try {
+            const payload = await response.json();
+            if (payload?.detail) {
+                return payload.detail;
+            }
+        } catch (error) {
+            console.error('Error parsing response payload:', error);
+        }
+        return fallbackMessage;
+    }
+
+    function updateVoiceModeButton() {
+        if (!voiceModeBtn) return;
+
+        const label = voiceModeBtn.querySelector('.voice-mode-label');
+        const enabled = canUseVoicePlayback() && voiceModeEnabled;
+        voiceModeBtn.disabled = !canUseVoicePlayback();
+        voiceModeBtn.classList.toggle('is-active', enabled);
+        voiceModeBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+        voiceModeBtn.title = !canUseVoicePlayback()
+            ? 'Voice is unavailable in this browser'
+            : (enabled ? 'Assistant voice is on for new replies' : 'Turn on assistant voice for new replies');
+        if (label) {
+            label.textContent = !canUseVoicePlayback()
+                ? 'Voice unavailable'
+                : (enabled ? 'Voice on' : 'Voice off');
+        }
+    }
+
+    function updateMessageVoiceButton(button) {
+        if (!button) return;
+
+        const messageIndex = Number(button.dataset.voiceMessageIndex);
+        const message = conversationMessages[messageIndex];
+        const isSpeakable = canUseVoicePlayback() && message && message.role === 'assistant' && Boolean((message.content || '').trim());
+        const isPlaying = isSpeakable && activeVoiceMessageIndex === messageIndex && (
+            (voiceAudio && !voiceAudio.paused) ||
+            (activeVoicePlaybackMode === 'browser' && browserSpeechSupported && window.speechSynthesis.speaking)
+        );
+
+        button.disabled = !isSpeakable;
+        button.classList.toggle('is-playing', Boolean(isPlaying));
+        button.setAttribute('aria-label', isPlaying ? 'Stop voice playback' : 'Play assistant voice');
+        button.title = !canUseVoicePlayback()
+            ? 'Voice is unavailable in this browser'
+            : (isPlaying ? 'Stop voice playback' : 'Play this reply as audio');
+        button.innerHTML = getVoiceButtonIconMarkup(Boolean(isPlaying));
+    }
+
+    function updateAllMessageVoiceButtons() {
+        document.querySelectorAll('.message-voice-btn').forEach(button => updateMessageVoiceButton(button));
+    }
+
+    async function initializeVoiceConfig() {
+        try {
+            const response = await fetch('/api/voice/config');
+            if (!response.ok) {
+                throw new Error(`Voice config failed: ${response.status}`);
+            }
+            voiceConfig = await response.json();
+        } catch (error) {
+            console.error('Error loading voice config:', error);
+            voiceConfig = { enabled: false, provider: 'elevenlabs', autoplay_supported: true, default_voice_id: '' };
+        }
+
+        renderVoicePicker();
+        updateVoiceModeButton();
+        updateAllMessageVoiceButtons();
+
+        if (!voiceConfig.enabled && !browserSpeechSupported) {
+            stopVoicePlayback();
+            stopVoicePreview();
+            closeVoicePicker();
+            return;
+        }
+
+        if (voiceConfig.enabled) {
+            await loadAvailableVoices();
+        }
+    }
+
+    function stopVoicePlayback() {
+        if (browserSpeechSupported && activeVoicePlaybackMode === 'browser' && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) {
+            window.speechSynthesis.cancel();
+        }
+        if (voiceAudio) {
+            voiceAudio.pause();
+            voiceAudio.src = '';
+            voiceAudio = null;
+        }
+        if (activeVoiceObjectUrl) {
+            URL.revokeObjectURL(activeVoiceObjectUrl);
+            activeVoiceObjectUrl = null;
+        }
+        activeVoiceMessageIndex = null;
+        activeVoiceButton = null;
+        activeVoicePlaybackMode = null;
+        updateAllMessageVoiceButtons();
+    }
+
+    function stopVoicePreview() {
+        if (browserSpeechSupported && activeVoicePreviewMode === 'browser' && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) {
+            window.speechSynthesis.cancel();
+        }
+        if (voicePreviewAudio) {
+            voicePreviewAudio.pause();
+            voicePreviewAudio.src = '';
+            voicePreviewAudio = null;
+        }
+        if (activeVoicePreviewObjectUrl) {
+            URL.revokeObjectURL(activeVoicePreviewObjectUrl);
+            activeVoicePreviewObjectUrl = null;
+        }
+        activeVoicePreviewMode = null;
+        updateVoicePreviewButton();
+    }
+
+    async function loadAvailableVoices(options = {}) {
+        const { showFeedback = false } = options;
+
+        if (!voiceConfig.enabled) {
+            voiceList = [];
+            voiceListError = '';
+            renderVoicePicker();
+            return;
+        }
+
+        if (showFeedback) {
+            resetTemporaryBrowserFallback();
+        }
+        isLoadingVoices = true;
+        voiceListError = '';
+        renderVoicePicker();
+
+        try {
+            const response = await fetch('/api/voice/voices');
+            if (!response.ok) {
+                throw new Error(await getResponseErrorMessage(response, 'Could not load ElevenLabs voices.'));
+            }
+
+            const payload = await response.json();
+            voiceList = Array.isArray(payload) ? payload : [];
+
+            if (!selectedVoiceId && !voiceConfig.default_voice_id && voiceList.length === 1) {
+                selectedVoiceId = voiceList[0].voice_id || '';
+                persistVoiceSelectionPreference();
+            }
+
+            if (showFeedback) {
+                showToast(voiceList.length ? 'ElevenLabs voices refreshed.' : 'No ElevenLabs voices were returned.');
+            }
+        } catch (error) {
+            console.error('Error loading ElevenLabs voices:', error);
+            voiceList = [];
+            voiceListError = error.message || 'Could not load ElevenLabs voices.';
+            if (showFeedback) {
+                showToast(voiceListError);
+            }
+        } finally {
+            isLoadingVoices = false;
+            renderVoicePicker();
+            updateVoiceModeButton();
+            updateAllMessageVoiceButtons();
+        }
+    }
+
+    function findAdjacentAssistantMessageContent(messageIndex, direction) {
+        for (let cursor = messageIndex + direction; cursor >= 0 && cursor < conversationMessages.length; cursor += direction) {
+            const message = conversationMessages[cursor];
+            if (message?.role === 'assistant' && message.content) {
+                return message.content;
+            }
+        }
+        return '';
+    }
+
+    function shouldAutoPlayAssistantVoice(content) {
+        return Boolean(
+            canUseVoicePlayback() &&
+            voiceModeEnabled &&
+            !isReplayingConversation &&
+            content &&
+            !content.startsWith('Error:')
+        );
+    }
+
+    async function speakConversationMessage(messageIndex, button, options = {}) {
+        const { suppressUnavailableToast = false } = options;
+        const message = conversationMessages[messageIndex];
+        if (!message || message.role !== 'assistant' || !message.content) {
+            return;
+        }
+
+        if (!canUseVoicePlayback()) {
+            if (!suppressUnavailableToast) {
+                showToast('Voice is unavailable in this browser.');
+            }
+            return;
+        }
+
+        const isCurrentlyPlaying = activeVoiceMessageIndex === messageIndex && (
+            (voiceAudio && !voiceAudio.paused) ||
+            (activeVoicePlaybackMode === 'browser' && browserSpeechSupported && window.speechSynthesis.speaking)
+        );
+        if (isCurrentlyPlaying) {
+            stopVoicePlayback();
+            return;
+        }
+
+        stopVoicePreview();
+        stopVoicePlayback();
+        activeVoiceMessageIndex = messageIndex;
+        activeVoiceButton = button;
+        updateAllMessageVoiceButtons();
+
+        const preferredProvider = getPreferredVoiceProvider();
+        if (preferredProvider === 'browser') {
+            try {
+                startBrowserSpeech(message.content, { mode: 'message', messageIndex });
+                if (temporaryBrowserVoiceFallback && !suppressUnavailableToast) {
+                    maybeShowBrowserFallbackToast();
+                }
+            } catch (error) {
+                stopVoicePlayback();
+                if (!suppressUnavailableToast) {
+                    showToast(error.message || 'Browser voice playback failed.');
+                }
+            }
+            return;
+        }
+
+        const effectiveVoiceId = getEffectiveVoiceId();
+        try {
+            const response = await fetch('/api/voice/speak', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    text: message.content,
+                    previous_text: findAdjacentAssistantMessageContent(messageIndex, -1),
+                    next_text: findAdjacentAssistantMessageContent(messageIndex, 1),
+                    voice_id: effectiveVoiceId
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(await getResponseErrorMessage(response, 'Voice playback could not start.'));
+            }
+
+            const audioBlob = await response.blob();
+            activeVoiceObjectUrl = URL.createObjectURL(audioBlob);
+            voiceAudio = new Audio(activeVoiceObjectUrl);
+            activeVoicePlaybackMode = 'audio';
+            voiceAudio.onended = () => stopVoicePlayback();
+            voiceAudio.onerror = () => {
+                stopVoicePlayback();
+                showToast('Voice playback failed.');
+            };
+            await voiceAudio.play();
+            resetTemporaryBrowserFallback();
+            renderVoicePicker();
+            updateAllMessageVoiceButtons();
+        } catch (error) {
+            console.error('Error playing voice response:', error);
+            if (canUseBrowserSpeechPlayback()) {
+                activateTemporaryBrowserFallback(error.message || 'ElevenLabs is unavailable.');
+                maybeShowBrowserFallbackToast();
+                try {
+                    startBrowserSpeech(message.content, { mode: 'message', messageIndex });
+                    return;
+                } catch (fallbackError) {
+                    stopVoicePlayback();
+                    if (!suppressUnavailableToast) {
+                        showToast(fallbackError.message || 'Browser voice playback failed.');
+                    }
+                    return;
+                }
+            }
+
+            stopVoicePlayback();
+            if (!suppressUnavailableToast) {
+                showToast(error.message || 'Voice playback failed.');
+            }
+        }
+    }
+
+    async function previewSelectedVoice() {
+        if (!canUseVoicePlayback() && !getSelectedVoice()?.preview_url) {
+            showToast('Voice preview is unavailable in this browser.');
+            return;
+        }
+
+        const isPreviewPlaying = Boolean(
+            (voicePreviewAudio && !voicePreviewAudio.paused) ||
+            (activeVoicePreviewMode === 'browser' && browserSpeechSupported && window.speechSynthesis.speaking)
+        );
+        if (isPreviewPlaying) {
+            stopVoicePreview();
+            return;
+        }
+
+        stopVoicePlayback();
+        stopVoicePreview();
+
+        const selectedVoice = getSelectedVoice();
+        const previewText = 'Hello from your travel planner. I can help with flights, trains, stays, and travel documents.';
+        const preferredProvider = getPreferredVoiceProvider();
+
+        try {
+            if (selectedVoice?.preview_url && preferredProvider !== 'browser') {
+                voicePreviewAudio = new Audio(selectedVoice.preview_url);
+                activeVoicePreviewMode = 'audio';
+            } else if (preferredProvider === 'browser') {
+                try {
+                    startBrowserSpeech(previewText, { mode: 'preview' });
+                    if (temporaryBrowserVoiceFallback) {
+                        maybeShowBrowserFallbackToast();
+                    }
+                } catch (browserError) {
+                    stopVoicePreview();
+                    showToast(browserError.message || 'Browser voice preview failed.');
+                }
+                return;
+            } else {
+                const effectiveVoiceId = getEffectiveVoiceId();
+                const response = await fetch('/api/voice/speak', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: previewText,
+                        voice_id: effectiveVoiceId
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(await getResponseErrorMessage(response, 'Voice preview could not start.'));
+                }
+
+                const audioBlob = await response.blob();
+                activeVoicePreviewObjectUrl = URL.createObjectURL(audioBlob);
+                voicePreviewAudio = new Audio(activeVoicePreviewObjectUrl);
+                activeVoicePreviewMode = 'audio';
+            }
+
+            voicePreviewAudio.onended = () => stopVoicePreview();
+            voicePreviewAudio.onerror = () => {
+                stopVoicePreview();
+                showToast('Voice preview failed.');
+            };
+
+            updateVoicePreviewButton();
+            await voicePreviewAudio.play();
+            resetTemporaryBrowserFallback();
+            renderVoicePicker();
+            updateVoicePreviewButton();
+        } catch (error) {
+            console.error('Error previewing selected voice:', error);
+            if (canUseBrowserSpeechPlayback()) {
+                activateTemporaryBrowserFallback(error.message || 'ElevenLabs is unavailable.');
+                maybeShowBrowserFallbackToast();
+                try {
+                    startBrowserSpeech(previewText, { mode: 'preview' });
+                    return;
+                } catch (fallbackError) {
+                    stopVoicePreview();
+                    showToast(fallbackError.message || 'Browser voice preview failed.');
+                    return;
+                }
+            }
+
+            stopVoicePreview();
+            showToast(error.message || 'Voice preview failed.');
+        }
+    }
+
     function persistPlannerDraft(showFeedback = false) {
         try {
             localStorage.setItem(PLANNER_STORAGE_KEY, JSON.stringify({
@@ -179,13 +1452,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function getTodayDateInputValue() {
+        const now = new Date();
+        const localNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
+        return localNow.toISOString().slice(0, 10);
+    }
+
+    function addDaysToDateInputValue(dateValue, days) {
+        if (!dateValue) {
+            return '';
+        }
+
+        const [year, month, day] = dateValue.split('-').map(Number);
+        if (![year, month, day].every(Number.isFinite)) {
+            return '';
+        }
+
+        const shiftedDate = new Date(Date.UTC(year, month - 1, day + days));
+        return shiftedDate.toISOString().slice(0, 10);
+    }
+
+    function getReturnDateMinValue(departureDate = plannerState.trip_details.departure_date) {
+        return departureDate ? addDaysToDateInputValue(departureDate, 1) : getTodayDateInputValue();
+    }
+
     function syncPlannerDerivedState(state = plannerState) {
         const nextState = state;
+        const today = getTodayDateInputValue();
         nextState.trip_details.duration_days = clampInteger(nextState.trip_details.duration_days, 1, 30, 5);
         nextState.travelers.adults = clampInteger(nextState.travelers.adults, 1, 9, 2);
         nextState.travelers.children = clampInteger(nextState.travelers.children, 0, 6, 0);
         nextState.travelers.rooms = clampInteger(nextState.travelers.rooms, 1, 6, 1);
         nextState.stay_preferences.budget_total = clampInteger(nextState.stay_preferences.budget_total, 5000, 500000, 40000);
+
+        if (nextState.trip_details.departure_date && nextState.trip_details.departure_date < today) {
+            nextState.trip_details.departure_date = '';
+        }
+        if (nextState.trip_details.return_date && nextState.trip_details.return_date < today) {
+            nextState.trip_details.return_date = '';
+        }
+        if (!nextState.trip_details.departure_date) {
+            nextState.trip_details.return_date = '';
+        } else {
+            const minimumReturnDate = getReturnDateMinValue(nextState.trip_details.departure_date);
+            if (nextState.trip_details.return_date && nextState.trip_details.return_date < minimumReturnDate) {
+                nextState.trip_details.return_date = '';
+            }
+        }
 
         if (!Array.isArray(nextState.travelers.child_ages)) {
             nextState.travelers.child_ages = [];
@@ -209,6 +1522,45 @@ document.addEventListener('DOMContentLoaded', () => {
         const number = Number.parseInt(value, 10);
         if (!Number.isFinite(number)) return fallback;
         return Math.min(max, Math.max(min, number));
+    }
+
+    function normalizeLocationToken(value) {
+        return String(value || '').trim().toLowerCase();
+    }
+
+    function getCountryForCity(city) {
+        return cityCountryMap[normalizeLocationToken(city)] || '';
+    }
+
+    function normalizeCountryName(country) {
+        const normalized = normalizeLocationToken(country);
+        return countryAliases[normalized] || country.trim();
+    }
+
+    function getPlannerDocumentContext(state = plannerState) {
+        const bookingMode = String(state.transport_preferences?.booking_mode || '').trim();
+        const rawOriginCity = String(state.trip_details?.origin_city || '').trim();
+        const rawDestinationCity = String(state.trip_details?.destination_city || '').trim();
+        const rawDestinationCountry = String(state.document_verification?.destination_country || '').trim();
+        const originCountry = normalizeCountryName(getCountryForCity(rawOriginCity));
+        const destinationCountry = normalizeCountryName(rawDestinationCountry || getCountryForCity(rawDestinationCity));
+        const isFlightOnlyBooking = bookingMode === 'Flights only';
+        const isTrainOnlyBooking = bookingMode === 'Trains only';
+        const hasKnownRouteCountries = Boolean(originCountry && destinationCountry);
+        const isInternationalRoute = hasKnownRouteCountries && originCountry !== destinationCountry;
+        const isApplicable = isFlightOnlyBooking && isInternationalRoute;
+
+        return {
+            bookingMode,
+            originCity: rawOriginCity,
+            destinationCity: rawDestinationCity,
+            originCountry,
+            destinationCountry,
+            isFlightOnlyBooking,
+            isTrainOnlyBooking,
+            isInternationalRoute,
+            isApplicable
+        };
     }
 
     function getSelectOptionsMarkup(options, selectedValue) {
@@ -386,11 +1738,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <label class="planner-field">
                         <span class="planner-label">Departure date</span>
-                        <input id="planner-departure-date" class="planner-input" type="date" data-path="trip_details.departure_date" value="${escapeHtml(plannerState.trip_details.departure_date)}">
+                        <input id="planner-departure-date" class="planner-input" type="date" min="${getTodayDateInputValue()}" data-path="trip_details.departure_date" value="${escapeHtml(plannerState.trip_details.departure_date)}">
                     </label>
                     <label class="planner-field" data-return-field>
                         <span class="planner-label">Return date</span>
-                        <input id="planner-return-date" class="planner-input" type="date" data-path="trip_details.return_date" value="${escapeHtml(plannerState.trip_details.return_date)}">
+                        <input id="planner-return-date" class="planner-input" type="date" min="${getReturnDateMinValue(plannerState.trip_details.departure_date)}" data-path="trip_details.return_date" value="${escapeHtml(plannerState.trip_details.return_date)}">
                     </label>
                     <label class="planner-field" data-duration-field>
                         <span class="planner-label">Trip duration</span>
@@ -532,6 +1884,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${getSelectOptionsMarkup(paceOptions, plannerState.transport_preferences.pace)}
                         </select>
                     </label>
+                    <label class="planner-field">
+                        <span class="planner-label">Booking mode</span>
+                        <select class="planner-select" data-path="transport_preferences.booking_mode">
+                            ${getSelectOptionsMarkup(bookingModeOptions, plannerState.transport_preferences.booking_mode)}
+                        </select>
+                    </label>
                 </div>
                 <div class="planner-field planner-field--full">
                     <span class="planner-label">Food preferences</span>
@@ -612,6 +1970,48 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="planner-label">Traveler notes</span>
                         <textarea class="planner-textarea" data-path="personal_info.traveler_notes" rows="3" placeholder="Any personal touches you want the planner to keep in mind.">${escapeHtml(plannerState.personal_info.traveler_notes)}</textarea>
                     </label>
+                    <div class="planner-field planner-field--full">
+                        <span class="planner-label">Document verification</span>
+                        <div class="planner-toggle-grid">
+                            <label class="planner-switch">
+                                <input type="checkbox" data-path="document_verification.authorized" ${plannerState.document_verification.authorized ? 'checked' : ''}>
+                                <span>Authorize passport and visa verification</span>
+                            </label>
+                            <label class="planner-switch">
+                                <input type="checkbox" data-path="document_verification.passport_verification" ${plannerState.document_verification.passport_verification ? 'checked' : ''}>
+                                <span>Verify passport details</span>
+                            </label>
+                            <label class="planner-switch">
+                                <input type="checkbox" data-path="document_verification.visa_verification" ${plannerState.document_verification.visa_verification ? 'checked' : ''}>
+                                <span>Verify visa details</span>
+                            </label>
+                        </div>
+                        <div class="planner-grid planner-grid--two">
+                            <label class="planner-field">
+                                <span class="planner-label">Passport number</span>
+                                <input class="planner-input" data-path="document_verification.passport_number" placeholder="Optional passport number" value="${escapeHtml(plannerState.document_verification.passport_number)}">
+                            </label>
+                            <label class="planner-field">
+                                <span class="planner-label">Passport expiry</span>
+                                <input class="planner-input" type="date" data-path="document_verification.passport_expiry_date" value="${escapeHtml(plannerState.document_verification.passport_expiry_date)}">
+                            </label>
+                            <label class="planner-field">
+                                <span class="planner-label">Visa status</span>
+                                <select class="planner-select" data-path="document_verification.visa_status">
+                                    ${getSelectOptionsMarkup(visaStatusOptions, plannerState.document_verification.visa_status)}
+                                </select>
+                            </label>
+                            <label class="planner-field">
+                                <span class="planner-label">Visa expiry</span>
+                                <input class="planner-input" type="date" data-path="document_verification.visa_expiry_date" value="${escapeHtml(plannerState.document_verification.visa_expiry_date)}">
+                            </label>
+                            <label class="planner-field planner-field--full">
+                                <span class="planner-label">Destination country for document check</span>
+                                <input class="planner-input" data-path="document_verification.destination_country" placeholder="Optional destination country" value="${escapeHtml(plannerState.document_verification.destination_country)}">
+                            </label>
+                        </div>
+                        <div class="planner-field-hint">You can also upload passport or visa documents in chat. Verification only runs after authorization and is only enforced for international flight bookings.</div>
+                    </div>
                 </div>
                 <p class="planner-privacy-note">Privacy note: keep this optional for planning and use placeholders in demos if you do not want to enter real personal data.</p>
             </section>
@@ -665,6 +2065,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const travelerSummary = `${plannerState.travelers.adults} adults, ${plannerState.travelers.children} children, ${plannerState.travelers.rooms} rooms`;
         const interestsSummary = plannerState.interests.activities.length ? plannerState.interests.activities.join(', ') : 'Add interests';
         const personalSummary = getPersonalSummary();
+        const documentSummary = getDocumentVerificationSummary();
 
         return {
             route,
@@ -672,7 +2073,8 @@ document.addEventListener('DOMContentLoaded', () => {
             travelerCount,
             travelerSummary,
             interestsSummary,
-            personalSummary
+            personalSummary,
+            documentSummary
         };
     }
 
@@ -699,6 +2101,32 @@ document.addEventListener('DOMContentLoaded', () => {
         return details.length ? details.join(' | ') : 'Optional details enabled';
     }
 
+    function getDocumentVerificationSummary() {
+        const documentContext = getPlannerDocumentContext();
+
+        if (!documentContext.isApplicable) {
+            return 'Passport and visa checks run only for international flight bookings';
+        }
+
+        if (!plannerState.document_verification.authorized) {
+            return 'Document verification not authorized';
+        }
+
+        const details = [];
+        if (plannerState.document_verification.passport_verification) {
+            details.push('Passport check enabled');
+        }
+        if (plannerState.document_verification.visa_verification) {
+            details.push(`Visa: ${plannerState.document_verification.visa_status}`);
+        }
+        if (plannerState.document_verification.destination_country) {
+            details.push(plannerState.document_verification.destination_country);
+        } else if (documentContext.destinationCountry) {
+            details.push(documentContext.destinationCountry);
+        }
+        return details.length ? details.join(' | ') : 'Document verification authorized';
+    }
+
     function validatePlannerState() {
         const errors = {
             0: [],
@@ -713,6 +2141,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const travelers = plannerState.travelers;
         const stay = plannerState.stay_preferences;
         const personal = plannerState.personal_info;
+        const documents = plannerState.document_verification;
+        const today = getTodayDateInputValue();
 
         if (!trip.origin_city) errors[0].push('Choose an origin city.');
         if (!trip.destination_city) errors[0].push('Choose a destination city.');
@@ -720,10 +2150,15 @@ document.addEventListener('DOMContentLoaded', () => {
             errors[0].push('Origin and destination should be different.');
         }
         if (!trip.departure_date) errors[0].push('Select a departure date.');
+        if (trip.departure_date && trip.departure_date < today) {
+            errors[0].push('Departure date cannot be in the past.');
+        }
         if (trip.date_mode === 'round_trip') {
             if (!trip.return_date) {
                 errors[0].push('Select a return date or switch to duration-based planning.');
-            } else if (trip.departure_date && trip.return_date <= trip.departure_date) {
+            } else if (trip.return_date < today) {
+                errors[0].push('Return date cannot be in the past.');
+            } else if (trip.departure_date && trip.return_date < getReturnDateMinValue(trip.departure_date)) {
                 errors[0].push('Return date should be after the departure date.');
             }
         } else if (!trip.duration_days || trip.duration_days < 1) {
@@ -754,6 +2189,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (personal.emergency_contact_phone && !/^[+\d][\d\s-]{6,}$/.test(personal.emergency_contact_phone)) {
                 errors[4].push('Use a valid emergency contact phone number or leave it blank.');
+            }
+            const documentContext = getPlannerDocumentContext();
+            if (documentContext.isApplicable && documents.passport_expiry_date && documents.passport_expiry_date < today) {
+                errors[4].push('Passport expiry date cannot be in the past.');
+            }
+            if (
+                documentContext.isApplicable &&
+                documents.visa_status === 'Already have visa' &&
+                documents.visa_expiry_date &&
+                documents.visa_expiry_date < today
+            ) {
+                errors[4].push('Visa expiry date cannot be in the past.');
             }
         }
 
@@ -818,11 +2265,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const returnField = document.querySelector('[data-return-field]');
         const durationField = document.querySelector('[data-duration-field]');
+        const departureInput = document.getElementById('planner-departure-date');
         const returnInput = document.getElementById('planner-return-date');
         const durationInput = document.getElementById('planner-duration-days');
         const usesRoundTrip = plannerState.trip_details.date_mode === 'round_trip';
         if (returnField) returnField.hidden = !usesRoundTrip;
         if (durationField) durationField.hidden = usesRoundTrip;
+        if (departureInput) {
+            departureInput.min = getTodayDateInputValue();
+            departureInput.value = plannerState.trip_details.departure_date;
+        }
+        if (returnInput) {
+            returnInput.min = getReturnDateMinValue(plannerState.trip_details.departure_date);
+            returnInput.value = plannerState.trip_details.return_date;
+        }
         if (returnInput) returnInput.disabled = !usesRoundTrip || !plannerState.trip_details.departure_date;
         if (durationInput) durationInput.disabled = usesRoundTrip;
 
@@ -851,8 +2307,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ${getSummarySectionCard('Trip Basics', summary.route, summary.dates, 0)}
             ${getSummarySectionCard('Travelers', summary.travelerSummary, `${summary.travelerCount} total travelers`, 1)}
             ${getSummarySectionCard('Budget & Stay', `INR ${formatCurrencyInr(plannerState.stay_preferences.budget_total)} • ${plannerState.stay_preferences.budget_type}`, `${plannerState.stay_preferences.stay_type} • ${plannerState.stay_preferences.area_preference}`, 2)}
-            ${getSummarySectionCard('Preferences', summary.interestsSummary, `${plannerState.transport_preferences.preference} • ${plannerState.transport_preferences.pace}`, 3)}
-            ${getSummarySectionCard('Personalization', summary.personalSummary, plannerState.personal_info.enabled ? 'Optional details included' : 'Still optional', 4)}
+            ${getSummarySectionCard('Preferences', summary.interestsSummary, `${plannerState.transport_preferences.preference} • ${plannerState.transport_preferences.pace} • ${plannerState.transport_preferences.booking_mode}`, 3)}
+            ${getSummarySectionCard('Personalization', summary.personalSummary, summary.documentSummary, 4)}
         `;
     }
 
@@ -864,8 +2320,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ${getReviewSectionCard('Route', summary.route, summary.dates, 0)}
             ${getReviewSectionCard('Travelers', summary.travelerSummary, plannerState.travelers.accessible_needs ? 'Accessible travel needs enabled' : 'Standard travel needs', 1)}
             ${getReviewSectionCard('Budget & Stay', `INR ${formatCurrencyInr(plannerState.stay_preferences.budget_total)} • ${plannerState.stay_preferences.budget_type}`, `${plannerState.stay_preferences.stay_type} • ${plannerState.stay_preferences.room_preference} • ${plannerState.stay_preferences.meal_preference}`, 2)}
-            ${getReviewSectionCard('Preferences', summary.interestsSummary, `${plannerState.transport_preferences.preference} • ${plannerState.transport_preferences.pace} • ${plannerState.interests.food_preferences.join(', ')}`, 3)}
-            ${getReviewSectionCard('Personalization', summary.personalSummary, plannerState.special_requirements.notes || 'No additional notes yet.', 4)}
+            ${getReviewSectionCard('Preferences', summary.interestsSummary, `${plannerState.transport_preferences.preference} • ${plannerState.transport_preferences.pace} • ${plannerState.transport_preferences.booking_mode}`, 3)}
+            ${getReviewSectionCard('Personalization', `${summary.personalSummary} • ${summary.documentSummary}`, plannerState.special_requirements.notes || 'No additional notes yet.', 4)}
         `;
     }
 
@@ -1040,6 +2496,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     chatContainer.addEventListener('click', (event) => {
+        const voiceButton = event.target.closest('[data-voice-message-index]');
+        if (voiceButton) {
+            const messageIndex = Number(voiceButton.dataset.voiceMessageIndex);
+            if (Number.isFinite(messageIndex)) {
+                void speakConversationMessage(messageIndex, voiceButton);
+            }
+            return;
+        }
+
         const promptChip = event.target.closest('.prompt-chip');
         if (promptChip) {
             userInput.value = promptChip.dataset.prompt || promptChip.textContent.trim();
@@ -1123,9 +2588,118 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    if (voiceModeBtn) {
+        voiceModeBtn.addEventListener('click', () => {
+            if (!canUseVoicePlayback()) {
+                showToast('Voice is unavailable in this browser.');
+                return;
+            }
+
+            voiceModeEnabled = !voiceModeEnabled;
+            persistVoiceModePreference();
+            updateVoiceModeButton();
+            if (!voiceModeEnabled) {
+                stopVoicePlayback();
+                stopVoicePreview();
+            } else {
+                showToast('Assistant voice is enabled for new replies.');
+            }
+        });
+    }
+
+    if (voicePickerBtn) {
+        voicePickerBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            if (!voiceConfig.enabled && !canUseBrowserSpeechPlayback()) {
+                showToast('Voice is unavailable in this browser.');
+                return;
+            }
+
+            if (voicePickerPanel?.hidden) {
+                openVoicePicker();
+            } else {
+                closeVoicePicker();
+            }
+        });
+    }
+
+    if (voiceSelect) {
+        voiceSelect.addEventListener('change', () => {
+            selectedVoiceId = String(voiceSelect.value || '').trim();
+            persistVoiceSelectionPreference();
+            stopVoicePlayback();
+            stopVoicePreview();
+            if (isBrowserVoiceSelected()) {
+                resetTemporaryBrowserFallback();
+            }
+            renderVoicePicker();
+            updateVoiceModeButton();
+            updateAllMessageVoiceButtons();
+
+            if (isBrowserVoiceSelected()) {
+                showToast('Using your device voice for assistant playback.');
+                return;
+            }
+
+            if (!selectedVoiceId && canUseBrowserSpeechPlayback()) {
+                showToast('Using your device voice as the fallback option.');
+                return;
+            }
+
+            if (!selectedVoiceId) {
+                showToast('Choose a voice to enable playback.');
+                return;
+            }
+
+            const selectedVoice = getSelectedVoice();
+            showToast(selectedVoice ? `${selectedVoice.name} selected for voice playback.` : 'Voice updated.');
+        });
+    }
+
+    if (voicePreviewBtn) {
+        voicePreviewBtn.addEventListener('click', () => {
+            void previewSelectedVoice();
+        });
+    }
+
+    if (voiceRefreshBtn) {
+        voiceRefreshBtn.addEventListener('click', () => {
+            if (!voiceConfig.enabled && canUseBrowserSpeechPlayback()) {
+                resetTemporaryBrowserFallback();
+                renderVoicePicker();
+                updateVoiceModeButton();
+                showToast('Device voice is ready to use.');
+                return;
+            }
+            void loadAvailableVoices({ showFeedback: true });
+        });
+    }
+
+    if (micBtn) {
+        micBtn.addEventListener('click', () => {
+            if (micListening) {
+                stopMicCapture({ keepTranscript: true });
+                return;
+            }
+            void startMicCapture();
+        });
+    }
+
     // Initialize history display
     renderHistory();
     renderWelcomeState();
+    renderVoicePicker();
+    updateVoiceModeButton();
+    updateMicButton();
+    void initializeVoiceConfig();
+
+    if (browserSpeechSupported) {
+        window.speechSynthesis.getVoices();
+        window.speechSynthesis.onvoiceschanged = () => {
+            renderVoicePicker();
+            updateVoiceModeButton();
+        };
+    }
 
     const fileInput = document.getElementById('file-input');
     let selectedFiles = [];  // Array to store multiple files
@@ -1148,6 +2722,19 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (e) => {
         if (!menu.contains(e.target) && !menuBtn.contains(e.target)) {
             menu.classList.remove('active');
+        }
+
+        if (voicePicker && !voicePicker.contains(e.target)) {
+            closeVoicePicker();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeVoicePicker();
+            if (micListening) {
+                stopMicCapture({ keepTranscript: true });
+            }
         }
     });
 
@@ -1335,6 +2922,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getPlannerPayload() {
+        const documentContext = getPlannerDocumentContext();
+        const documentVerificationPayload = documentContext.isApplicable
+            ? {
+                applicable: true,
+                scope: 'international_flight_booking',
+                authorized: plannerState.document_verification.authorized,
+                passport_verification: plannerState.document_verification.passport_verification,
+                visa_verification: plannerState.document_verification.visa_verification,
+                passport_number: plannerState.document_verification.passport_number,
+                passport_expiry_date: plannerState.document_verification.passport_expiry_date,
+                visa_status: plannerState.document_verification.visa_status,
+                visa_expiry_date: plannerState.document_verification.visa_expiry_date,
+                destination_country: documentContext.destinationCountry || plannerState.document_verification.destination_country
+            }
+            : {
+                applicable: false,
+                scope: 'skip_for_non_international_flight_booking',
+                authorized: false,
+                passport_verification: false,
+                visa_verification: false,
+                passport_number: '',
+                passport_expiry_date: '',
+                visa_status: 'Not required',
+                visa_expiry_date: '',
+                destination_country: ''
+            };
+
         return {
             trip_details: {
                 origin_city: plannerState.trip_details.origin_city,
@@ -1364,7 +2978,8 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             transport_preferences: {
                 preference: plannerState.transport_preferences.preference,
-                pace: plannerState.transport_preferences.pace
+                pace: plannerState.transport_preferences.pace,
+                booking_mode: plannerState.transport_preferences.booking_mode
             },
             interests: {
                 activities: plannerState.interests.activities,
@@ -1384,17 +2999,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 emergency_contact_phone: plannerState.personal_info.emergency_contact_phone,
                 traveler_notes: plannerState.personal_info.traveler_notes
             },
+            document_verification: documentVerificationPayload,
             special_requirements: {
                 notes: plannerState.special_requirements.notes
             },
             submission_context: {
-                source: 'web_booking_planner'
+                source: 'web_booking_planner',
+                document_verification_applicable: documentContext.isApplicable,
+                transport_booking_mode: documentContext.bookingMode,
+                route_scope: documentContext.isInternationalRoute ? 'international' : 'domestic_or_unknown'
             }
         };
     }
 
     function getPlannerDisplayMessage() {
         const summary = getPlannerSummaryData();
+        const documentContext = getPlannerDocumentContext();
         const lines = [
             'Trip planning request',
             `1. Route: ${summary.route}`,
@@ -1405,8 +3025,12 @@ document.addEventListener('DOMContentLoaded', () => {
             `6. Personalization: ${summary.personalSummary}`
         ];
 
+        if (documentContext.isApplicable) {
+            lines.push(`7. Documents: ${summary.documentSummary}`);
+        }
+
         if (plannerState.special_requirements.notes) {
-            lines.push(`7. Notes: ${plannerState.special_requirements.notes}`);
+            lines.push(`${documentContext.isApplicable ? '8' : '7'}. Notes: ${plannerState.special_requirements.notes}`);
         }
 
         return lines.join('\n');
@@ -1551,6 +3175,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     chatForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        stopMicCapture({ keepTranscript: true });
         const message = userInput.value.trim();
         const filesToSend = consumeSelectedFiles();
         if ((!message && filesToSend.length === 0) || isProcessing) return;
@@ -1585,7 +3210,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function appendMessage(role, content) {
+    function appendMessage(role, content, options = {}) {
+        const { persist = true, messageIndexOverride = null, autoplay = true } = options;
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${role}`;
 
@@ -1593,15 +3219,38 @@ document.addEventListener('DOMContentLoaded', () => {
         contentDiv.className = 'message-content';
 
         const formattedContent = formatMessageContent(content);
+        const messageIndex = Number.isInteger(messageIndexOverride) ? messageIndexOverride : conversationMessages.length;
 
         contentDiv.innerHTML = formattedContent;
 
         messageDiv.appendChild(contentDiv);
+        if (role === 'assistant') {
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'message-actions';
+
+            const voiceButton = document.createElement('button');
+            voiceButton.type = 'button';
+            voiceButton.className = 'message-voice-btn';
+            voiceButton.dataset.voiceMessageIndex = String(messageIndex);
+            actionsDiv.appendChild(voiceButton);
+
+            messageDiv.appendChild(actionsDiv);
+        }
         chatContainer.appendChild(messageDiv);
         scrollToBottom();
 
         // Update internal state
-        conversationMessages.push({ role, content });
+        if (persist) {
+            conversationMessages.push({ role, content });
+        }
+        updateAllMessageVoiceButtons();
+
+        if (role === 'assistant' && autoplay && shouldAutoPlayAssistantVoice(content)) {
+            const voiceButton = messageDiv.querySelector('.message-voice-btn');
+            if (voiceButton) {
+                void speakConversationMessage(messageIndex, voiceButton, { suppressUnavailableToast: true });
+            }
+        }
     }
 
     function formatMessageContent(content) {
@@ -1675,6 +3324,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     runningText: 'Searching...',
                     icon: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"></path></svg>'
                 };
+            case 'search_trains':
+                return {
+                    title: 'Train Search',
+                    description: `${args.origin || '?'} to ${args.destination || '?'} on ${args.date || '?'}`,
+                    runningText: 'Searching...',
+                    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15V9a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6"></path><path d="M4 15h16"></path><path d="M8 19 6 21"></path><path d="M16 19l2 2"></path><path d="M8 11h.01"></path><path d="M16 11h.01"></path></svg>'
+                };
+            case 'search_hotels':
+                return {
+                    title: 'Hotel Search',
+                    description: `${args.destination || '?'} on ${args.date || '?'} for ${args.nights || 1} night(s)`,
+                    runningText: 'Searching stays...',
+                    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14"></path><path d="M3 13h18"></path><path d="M7 9h.01"></path><path d="M12 9h.01"></path><path d="M17 9h.01"></path></svg>'
+                };
             case 'get_forecast':
                 return {
                     title: 'Weather Forecast',
@@ -1693,8 +3356,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 return {
                     title: 'Flight Booking',
                     description: `Booking for ${args.passenger_name || '?'}`,
-                    runningText: 'Booking...',
+                    runningText: 'Preparing...',
                     icon: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"></path></svg>'
+                };
+            case 'book_train':
+                return {
+                    title: 'Train Booking',
+                    description: `Booking for ${args.passenger_name || '?'}`,
+                    runningText: 'Preparing...',
+                    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 17h12"></path><path d="M7 4h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z"></path><path d="M8 8h8"></path><path d="M8 12h8"></path></svg>'
+                };
+            case 'verify_travel_documents':
+                return {
+                    title: 'Document Check',
+                    description: `${args.full_name || 'Traveler'} on ${args.destination_country || 'route review'}`,
+                    runningText: 'Verifying...',
+                    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 7h8"></path><path d="M8 11h8"></path><path d="M8 15h5"></path></svg>'
                 };
             case 'process_payment':
                 return {
@@ -1738,6 +3415,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusDiv.textContent = 'Completed';
                 statusDiv.style.backgroundColor = 'rgba(34, 197, 94, 0.1)';
                 statusDiv.style.color = '#22c55e';
+
+                if ((name === 'book_flight' || name === 'book_train') && parsedContent) {
+                    if (parsedContent.status === 'pending_payment') {
+                        statusDiv.textContent = 'Awaiting payment';
+                        statusDiv.style.backgroundColor = 'rgba(11, 87, 208, 0.12)';
+                        statusDiv.style.color = '#0b57d0';
+                        toolArgsDiv.textContent = parsedContent.message || 'Payment is required before this booking can be confirmed.';
+                    } else if (parsedContent.status === 'confirmed') {
+                        toolArgsDiv.textContent = parsedContent.booking_reference
+                            ? `Reference ${parsedContent.booking_reference}`
+                            : (toolArgsDiv.textContent || 'Booking confirmed');
+                    }
+                }
 
                 if (name === 'process_payment' && parsedContent) {
                     if (parsedContent.provider === 'razorpay') {
@@ -1785,8 +3475,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setProcessing(processing) {
         isProcessing = processing;
+        if (processing) {
+            stopMicCapture({ keepTranscript: true });
+        }
         userInput.disabled = processing;
         sendBtn.disabled = processing;
+        updateMicButton();
 
         if (processing) {
             statusDot.classList.add('busy');
@@ -1874,6 +3568,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function startNewConversation() {
         // Clear current conversation
+        stopVoicePlayback();
+        stopVoicePreview();
+        stopMicCapture({ keepTranscript: false });
         renderWelcomeState();
         currentConversationId = null;
         conversationMessages = [];
@@ -1888,6 +3585,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const conversation = searchHistory.find(c => c.id === id);
         if (!conversation) return;
 
+        stopVoicePlayback();
+        stopVoicePreview();
+        stopMicCapture({ keepTranscript: false });
         currentConversationId = id;
         conversationMessages = conversation.messages || [];
 
@@ -1901,7 +3601,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Replay messages
-        conversationMessages.forEach(msg => {
+        isReplayingConversation = true;
+        conversationMessages.forEach((msg, index) => {
             if (msg.role === 'tool_call_ui') {
                 // Reconstruct tool call UI
                 const toolDiv = document.createElement('div');
@@ -1922,18 +3623,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 chatContainer.appendChild(toolDiv);
             } else {
-                appendMessage(msg.role, msg.content);
+                appendMessage(msg.role, msg.content, {
+                    persist: false,
+                    messageIndexOverride: index,
+                    autoplay: false
+                });
             }
         });
+        isReplayingConversation = false;
 
-        // Remove duplicate messages from state (appendMessage adds them again)
-        // Actually appendMessage adds to conversationMessages, so we should reset it before replaying
-        // But wait, appendMessage pushes to conversationMessages. 
-        // So if we loop and call appendMessage, we are doubling the array.
-        // Let's fix this by decoupling UI rendering from state update in appendMessage, 
-        // OR just reset conversationMessages after replaying?
-        // Better: make appendMessage NOT update state, handle state separately.
-        // But for now, let's just reset it to the loaded messages after replaying.
         conversationMessages = conversation.messages || [];
 
         scrollToBottom();

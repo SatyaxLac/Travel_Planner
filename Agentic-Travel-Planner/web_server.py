@@ -4,15 +4,20 @@ import json
 import logging
 import asyncio
 from typing import AsyncGenerator
+from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, Form, File, UploadFile
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
 
 from travel_agent.config import Config
 from travel_agent.agent.llm import get_llm_provider
@@ -21,10 +26,20 @@ from travel_agent.agent.orchestrator import AgentOrchestrator
 from travel_agent.tools import (
     search_flights, 
     book_flight, 
+    search_hotels,
+    search_trains,
+    book_train,
     rent_car, 
     get_forecast, 
     process_payment,
+    verify_travel_documents,
     get_current_datetime
+)
+from travel_agent.voice import (
+    get_audio_media_type,
+    get_voice_status,
+    list_available_voices,
+    synthesize_speech,
 )
 
 # Configure Logging
@@ -34,7 +49,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Add CORS
 app.add_middleware(
@@ -47,6 +62,13 @@ app.add_middleware(
 
 # Initialize Agent Global Variable
 agent = None
+
+
+class VoiceSynthesisRequest(BaseModel):
+    text: str
+    previous_text: str | None = None
+    next_text: str | None = None
+    voice_id: str | None = None
 
 
 def build_mock_agent(reason: str = "API keys are missing or exhausted."):
@@ -126,9 +148,13 @@ async def initialize_agent():
     server = MCPServer()
     server.register_tool(search_flights)
     server.register_tool(book_flight)
+    server.register_tool(search_hotels)
+    server.register_tool(search_trains)
+    server.register_tool(book_train)
     server.register_tool(rent_car)
     server.register_tool(get_forecast)
     server.register_tool(process_payment)
+    server.register_tool(verify_travel_documents)
     server.register_tool(get_current_datetime)
 
     agent = AgentOrchestrator(llm, server)
@@ -146,7 +172,47 @@ async def startup_event():
 
 @app.get("/")
 async def index():
-    return FileResponse('static/index.html')
+    return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/api/voice/config")
+async def voice_config():
+    return get_voice_status()
+
+
+@app.get("/api/voice/voices")
+async def voice_voices():
+    try:
+        return await list_available_voices()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"ElevenLabs voice listing failed: {exc}")
+        raise HTTPException(status_code=502, detail="Voice list could not be loaded.")
+
+
+@app.post("/api/voice/speak")
+async def voice_speak(payload: VoiceSynthesisRequest):
+    try:
+        audio_bytes = await synthesize_speech(
+            payload.text,
+            previous_text=payload.previous_text,
+            next_text=payload.next_text,
+            voice_id=payload.voice_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"ElevenLabs synthesis failed: {exc}")
+        raise HTTPException(status_code=502, detail="Voice synthesis failed.")
+
+    return Response(
+        content=audio_bytes,
+        media_type=get_audio_media_type(Config.ELEVENLABS_OUTPUT_FORMAT),
+        headers={"Cache-Control": "no-store"},
+    )
 
 @app.post("/api/chat")
 async def chat(

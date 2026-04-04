@@ -1,0 +1,142 @@
+[
+  {
+    "hotel_id": "GOA-CANDOLIM-01",
+    "name": "Sea Crest Candolim",
+    "city": "Goa",
+    "country": "India",
+    "area": "Candolim",
+    "property_type": "Beach Hotel",
+    "rating": 4.6,
+    "review_count": 1842,
+    "check_in_from": "14:00",
+    "check_out_until": "11:00",
+    "airport_transfer_minutes": 48,
+    "distance_to_center_km": 2.3,
+    "city_popularity": 0.91,
+    "amenities": ["Pool", "Breakfast included", "Wi-Fi", "Beach shuttle", "Gym"],
+    "room_types": [
+      {"code": "DELUXE_KING", "name": "Deluxe King", "base_price_per_night": 4650, "base_inventory": 18, "max_guests": 2, "breakfast_included": true, "demand_weight": 1.08},
+      {"code": "SEA_VIEW_SUITE", "name": "Sea View Suite", "base_price_per_night": 7850, "base_inventory": 8, "max_guests": 3, "breakfast_included": true, "demand_weight": 0.86}
+    ]
+  },
+  {
+    "hotel_id": "GOA-PANAJI-02",
+    "name": "Mandovi Riverside Stay",
+    "city": "Goa",
+    "country": "India",
+    "area": "Panaji",
+    "property_type": "City Hotel",
+    "rating": 4.3,
+    "review_count": 1260,
+    "check_in_from": "13:00",
+    "check_out_until": "11:00",
+    "airport_transfer_minutes": 40,
+    "distance_to_center_km": 1.1,
+    "city_popularity": 0.84,
+    "amenities": ["Wi-Fi", "Breakfast included", "River view", "Parking"],
+    "room_types": [
+      {"code": "STANDARD_DOUBLE", "name": "Standard Double", "base_price_per_night": 3480, "base_inventory": 24, "max_guests": 2, "breakfast_included": true, "demand_weight": 1.12},
+      {"code": "FAMILY_ROOM", "name": "Family Room", "base_price_per_night": 5920, "base_inventory": 10, "max_guests": 4, "breakfast_included": true, "demand_weight": 0.9}
+    ]
+  },
+  {
+    "hotel_id": "LKO-HAZRATGANJ-01",
+    "name": "Hazratganj Grand",
+    "city": "Lucknow",
+    "country": "India",
+    "area": "Hazratganj",
+    "property_type": "Business Hotel",
+    "rating": 4.4,
+    "review_count": 978,
+    "check_in_from": "12:00",
+    "check_out_until": "10:00",
+    "airport_transfer_minutes": 35,
+    "distance_to_center_km": 1.8,
+    "city_popularity": 0.7,
+    "amenities": ["Wi-Fi", "Breakfast included", "Fitness center", "Business lounge"],
+    "room_types": [
+      {"code": "EXECUTIVE", "name": "Executive Room", "base_price_per_night": 3920, "base_inventory": 20, "max_guests": 2, "breakfast_included": true, "demand_weight": 1.05},
+      {"code": "PREMIUM_SUITE", "name": "Premium Suite", "base_price_per_night": 6680, "base_inventory": 6, "max_guests": 3, "breakfast_included": true, "demand_weight": 0.82}
+    ]
+  },
+  {
+    "hotel_id": "LON-KENSINGTON-01",
+    "name": "Kensington Atelier Hotel",
+    "city": "London",
+    "country": "United Kingdom",
+    "area": "Kensington",
+    "property_type": "Boutique Hotel",
+    "rating": 4.7,
+    "review_count": 2144,
+    "check_in_from": "15:00",
+    "check_out_until": "11:00",
+    "airport_transfer_minutes": 52,
+    "distance_to_center_km": 3.1,
+    "city_popularity": 0.88,
+    "amenities": ["Wi-Fi", "Concierge", "Breakfast included", "Gym", "Tea lounge"],
+    "room_types": [
+      {"code": "CLASSIC_DOUBLE", "name": "Classic Double", "base_price_per_night": 18600, "base_inventory": 16, "max_guests": 2, "breakfast_included": true, "demand_weight": 1.02},
+      {"code": "JUNIOR_SUITE", "name": "Junior Suite", "base_price_per_night": 28600, "base_inventory": 8, "max_guests": 3, "breakfast_included": true, "demand_weight": 0.8}
+    ]
+  },
+  {
+    "hotel_id": "PARIS-OPERA-01",
+    "name": "Opera Lumiere Residence",
+    "city": "Paris",
+    "country": "France",
+    "area": "Opera",
+    "property_type": "Design Hotel",
+    "rating": 4.5,
+    "review_count": 1655,
+    "check_in_from": "14:00",
+    "check_out_until": "11:00",
+    "airport_transfer_minutes": 46,
+    "distance_to_center_km": 2.0,
+    "city_popularity": 0.82,
+    "amenities": ["Wi-Fi", "Breakfast included", "Airport pickup", "Spa access"],
+    "room_types": [
+      {"code": "COSY_QUEEN", "name": "Cosy Queen", "base_price_per_night": 16850, "base_inventory": 18, "max_guests": 2, "breakfast_included": true, "demand_weight": 1.04},
+      {"code": "BALCONY_SUITE", "name": "Balcony Suite", "base_price_per_night": 27400, "base_inventory": 7, "max_guests": 3, "breakfast_included": true, "demand_weight": 0.8}
+    ]
+  },
+  {
+    "hotel_id": "DXB-MARINA-01",
+    "name": "Marina Skyline Suites",
+    "city": "Dubai",
+    "country": "United Arab Emirates",
+    "area": "Dubai Marina",
+    "property_type": "Serviced Apartments",
+    "rating": 4.6,
+    "review_count": 1930,
+    "check_in_from": "15:00",
+    "check_out_until": "12:00",
+    "airport_transfer_minutes": 32,
+    "distance_to_center_km": 2.8,
+    "city_popularity": 0.86,
+    "amenities": ["Wi-Fi", "Pool", "Gym", "Kitchenette", "Parking"],
+    "room_types": [
+      {"code": "STUDIO", "name": "Studio Apartment", "base_price_per_night": 9620, "base_inventory": 20, "max_guests": 2, "breakfast_included": false, "demand_weight": 1.0},
+      {"code": "ONE_BEDROOM", "name": "One Bedroom Suite", "base_price_per_night": 13800, "base_inventory": 12, "max_guests": 3, "breakfast_included": false, "demand_weight": 0.86}
+    ]
+  },
+  {
+    "hotel_id": "SIN-MARINA-01",
+    "name": "Marina Bay Harbour View",
+    "city": "Singapore",
+    "country": "Singapore",
+    "area": "Marina Bay",
+    "property_type": "Luxury Hotel",
+    "rating": 4.8,
+    "review_count": 2410,
+    "check_in_from": "15:00",
+    "check_out_until": "12:00",
+    "airport_transfer_minutes": 24,
+    "distance_to_center_km": 1.6,
+    "city_popularity": 0.9,
+    "amenities": ["Infinity pool", "Wi-Fi", "Breakfast included", "Sky bar", "Gym"],
+    "room_types": [
+      {"code": "DELUXE_CITY", "name": "Deluxe City View", "base_price_per_night": 17800, "base_inventory": 22, "max_guests": 2, "breakfast_included": true, "demand_weight": 1.03},
+      {"code": "PREMIER_HARBOUR", "name": "Premier Harbour View", "base_price_per_night": 24600, "base_inventory": 10, "max_guests": 3, "breakfast_included": true, "demand_weight": 0.82}
+    ]
+  }
+]

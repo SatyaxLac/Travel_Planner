@@ -8,7 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=100">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b57d0'/%3E%3Cpath d='M20 32h24M32 20v24' stroke='white' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/static/css/style.css?v=102">
 </head>
 
 <body>
@@ -95,7 +96,54 @@
                     <span>Upload files</span>
                 </label>
             </div>
+            <button type="button" class="voice-mode-btn" title="Turn voice on or off" id="voice-mode-btn" aria-pressed="false">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M15.5 8.5a5 5 0 0 1 0 7"></path>
+                    <path d="M18.5 5.5a9 9 0 0 1 0 13"></path>
+                </svg>
+                <span class="voice-mode-label">Voice off</span>
+            </button>
+            <div class="voice-picker" id="voice-picker">
+                <button
+                    type="button"
+                    class="voice-picker-btn"
+                    title="Voice settings"
+                    id="voice-picker-btn"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                    aria-controls="voice-picker-panel"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1v22"></path>
+                        <path d="M17 5H9a4 4 0 0 0 0 8h6a4 4 0 0 1 0 8H7"></path>
+                    </svg>
+                    <span class="voice-picker-label">Voice settings</span>
+                </button>
+                <div class="voice-picker-panel" id="voice-picker-panel" hidden>
+                    <div class="voice-picker-header">
+                        <strong>Assistant voice</strong>
+                        <p id="voice-picker-status">Automatic voice uses ElevenLabs when available and your device voice as fallback.</p>
+                    </div>
+                    <label class="voice-picker-field" for="voice-select">Voice source</label>
+                    <select id="voice-select" class="voice-picker-select"></select>
+                    <p class="voice-picker-meta" id="voice-picker-meta" hidden></p>
+                    <div class="voice-picker-actions-row">
+                        <button type="button" class="voice-picker-action-btn" id="voice-preview-btn">Preview</button>
+                        <button type="button" class="voice-picker-action-btn voice-picker-action-btn--ghost" id="voice-refresh-btn">Refresh</button>
+                    </div>
+                </div>
+            </div>
             <input type="text" id="user-input" placeholder="Prefer chatting instead? Ask a follow-up or describe a trip here..." autocomplete="off">
+            <button type="button" class="mic-btn" title="Speak your message" id="mic-btn" aria-pressed="false">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 1 1-6 0V6a3 3 0 0 1 3-3Z"></path>
+                    <path d="M19 10a7 7 0 0 1-14 0"></path>
+                    <path d="M12 19v3"></path>
+                    <path d="M8 22h8"></path>
+                </svg>
+                <span class="mic-btn-label">Mic</span>
+            </button>
             <button type="submit" id="send-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
@@ -104,7 +152,8 @@
         </form>
         <div class="attribution">
             Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> •
-            Flight data by <a href="https://developers.amadeus.com/" target="_blank" rel="noopener">Amadeus</a>
+            Flight data by <a href="https://developers.amadeus.com/" target="_blank" rel="noopener">Amadeus</a> â€¢
+            Voice by <a href="https://elevenlabs.io/" target="_blank" rel="noopener">ElevenLabs</a>
         </div>
     </div>
     </div>
@@ -163,7 +212,7 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js?v=100"></script>
+    <script src="/static/js/app.js?v=102"></script>
 </body>
 
 </html>

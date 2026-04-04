@@ -1,0 +1,12 @@
+openai
+anthropic
+google-generativeai
+python-dotenv
+httpx
+pydantic
+fastapi
+uvicorn
+python-multipart
+pypdf
+python-docx
+langfuse
